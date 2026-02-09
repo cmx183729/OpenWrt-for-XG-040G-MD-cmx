@@ -1,2 +1,10 @@
 src-git packages https://github.com/openwrt/packages.git;master
 src-git luci https://github.com/openwrt/luci.git;master
+src-git routing https://github.com/openwrt/routing.git;master
+src-git telephony https://github.com/openwrt/telephony.git;master
+
+# --- 第三方扩展源 ---
+src-git kenzo https://github.com/kenzok8/openwrt-packages
+src-git small https://github.com/kenzok8/small
+src-git rtp2httpd https://github.com/stackia/rtp2httpd.git
+
