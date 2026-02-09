@@ -1,4 +1,4 @@
-name: Build_XG_040G_MD
+name: Build_XG_040G_MD-openwrt
 
 permissions:
   contents: write
@@ -18,7 +18,7 @@ env:
   # REPO_URL: https://github.com/immortalwrt/immortalwrt.git
   REPO_URL: https://github.com/openwrt/openwrt.git
   REPO_BRANCH: main
-  FEEDS_CONF: feeds.conf.default
+  FEEDS_CONF: feeds.conf.default-openwrt
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
   TZ: Asia/Shanghai
