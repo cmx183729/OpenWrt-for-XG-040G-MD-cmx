@@ -7,18 +7,14 @@ permissions:
 on:
   workflow_dispatch:
     inputs:
-      ssh:
-        description: "SSH connection (Troubleshooting)"
-        required: false
-        default: false
-        type: boolean
       log_switch:
-        description: "Build logs (True=详细日志)"
+        description: "开启详细日志 (True=开启)"
         required: false
         default: false
         type: boolean
 
 env:
+  # 指定你的配置文件路径
   CONFIG_FILE: "config/xg-040g-md.config"
   REPO_URL: https://github.com/openwrt/openwrt.git
   REPO_BRANCH: master
@@ -33,6 +29,7 @@ jobs:
 
     steps:
       - name: Checkout
+        # 遵照您的要求，使用作者原版的 v6
         uses: actions/checkout@v6
 
       - name: Setup environment dependencies
@@ -50,77 +47,64 @@ jobs:
         run: |
           git clone --depth 1 --branch "$REPO_BRANCH" "$REPO_URL" openwrt
 
-      - name: Apply Custom Patches (安全模式)
+      - name: Apply Custom Patches (自动挂载 Patch)
         run: |
-          # --- 0. 创建目标目录 (防止目录不存在报错) ---
+          # --- 1. 创建目标目录 ---
           mkdir -p openwrt/target/linux/airoha/an7581/base-files/etc/board.d/
           mkdir -p openwrt/target/linux/airoha/image/
           mkdir -p openwrt/target/linux/airoha/dts/
           mkdir -p openwrt/package/kernel/linux/modules/
           mkdir -p openwrt/files/etc/uci-defaults/
 
-          # --- 1. 复制核心补丁文件 (带检查) ---
+          # --- 2. 复制补丁文件 (带智能检测) ---
           
-          # 检查 02_network (兼容 .txt 后缀)
+          # 02_network (兼容无后缀和.txt后缀)
           if [ -f patch/02_network ]; then
             cp -f patch/02_network openwrt/target/linux/airoha/an7581/base-files/etc/board.d/02_network
           elif [ -f patch/02_network.txt ]; then
             cp -f patch/02_network.txt openwrt/target/linux/airoha/an7581/base-files/etc/board.d/02_network
-          else
-            echo "⚠️ Warning: 02_network not found!"
           fi
 
-          if [ -f patch/an7581.mk ]; then
-             cp -f patch/an7581.mk openwrt/target/linux/airoha/image/an7581.mk
-          fi
+          [ -f patch/an7581.mk ] && cp -f patch/an7581.mk openwrt/target/linux/airoha/image/an7581.mk
+          [ -f patch/an7581-bell_xg-040g-md.dts ] && cp -f patch/an7581-bell_xg-040g-md.dts openwrt/target/linux/airoha/dts/an7581-bell_xg-040g-md.dts
+          [ -f patch/target.mk ] && cp -f patch/target.mk openwrt/target/linux/airoha/an7581/target.mk
+          [ -f patch/config-6.12 ] && cp -f patch/config-6.12 openwrt/target/linux/airoha/an7581/config-6.12
+          [ -f patch/netdevices.mk ] && cp -f patch/netdevices.mk openwrt/package/kernel/linux/modules/netdevices.mk
 
-          if [ -f patch/an7581-bell_xg-040g-md.dts ]; then
-             cp -f patch/an7581-bell_xg-040g-md.dts openwrt/target/linux/airoha/dts/an7581-bell_xg-040g-md.dts
-          fi
-
-          if [ -f patch/target.mk ]; then
-             cp -f patch/target.mk openwrt/target/linux/airoha/an7581/target.mk
-          fi
-
-          if [ -f patch/config-6.12 ]; then
-             cp -f patch/config-6.12 openwrt/target/linux/airoha/an7581/config-6.12
-          fi
-
-          if [ -f patch/netdevices.mk ]; then
-             cp -f patch/netdevices.mk openwrt/package/kernel/linux/modules/netdevices.mk
-          fi
-
-          # --- 2. 复制开机优化脚本 ---
+          # --- 3. 复制开机优化脚本 ---
           if [ -f patch/99-init-settings ]; then
             cp -f patch/99-init-settings openwrt/files/etc/uci-defaults/99-init-settings
             chmod +x openwrt/files/etc/uci-defaults/99-init-settings
-            echo "✅ Optimization script applied."
-          else
-            echo "⚠️ Warning: 99-init-settings not found, skipping optimization."
+            echo "Optimization script applied."
           fi
 
       - name: Update & Install feeds
         working-directory: ./openwrt
         run: |
+          # 使用我们自定义的 feeds.conf.default
           if [ -f ../$FEEDS_CONF ]; then
             cp -f ../$FEEDS_CONF ./feeds.conf.default
           fi
           
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-          
-          # 强制安装指定包，防止编译时找不到
+          # 强制安装必备包
           ./scripts/feeds install luci luci-base luci-app-passwall luci-app-lucky luci-app-rtp2httpd || true
 
       - name: Copy configuration and defconfig
         run: |
+          # 将 config/xg-040g-md.config 复制为 .config
           [ -f "${CONFIG_FILE}" ] && cp -fv "${CONFIG_FILE}" openwrt/.config
           
           cd openwrt
+          # 根据 .config 自动生成完整配置
           make defconfig
+          
+          # 保存最终配置用于排查
           [ -f .config ] && cp .config defconfig-final.config
 
       - name: Upload build config files
+        # 遵照您的要求，使用作者原版的 v6
         uses: actions/upload-artifact@v6
         with:
           name: build-config
@@ -138,6 +122,7 @@ jobs:
         id: compile
         run: |
           cd openwrt
+          echo "Starting Compile..."
           if [[ "${{ inputs.log_switch }}" == "true" ]]; then
             make -j1 V=s
           else
@@ -156,6 +141,7 @@ jobs:
           echo "FIRMWARE=$PWD" >> $GITHUB_ENV
 
       - name: Upload firmware artifacts
+        # 遵照您的要求，使用作者原版的 v6
         uses: actions/upload-artifact@v6
         if: env.UPLOAD_FIRMWARE == 'true'
         with:
@@ -171,6 +157,7 @@ jobs:
           🚀 OpenWrt firmware for XG-040G-MD
           ----------------------
           构建时间: $(date +"%Y-%m-%d %H:%M")
+          状态: 自动化编译 (No SSH)
           EOF
 
       - name: Publish GitHub Release
@@ -182,4 +169,3 @@ jobs:
           artifacts: ${{ env.FIRMWARE }}/*
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
-
