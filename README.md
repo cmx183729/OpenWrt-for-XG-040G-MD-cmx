@@ -6,4 +6,5 @@ OpenWrt firmware for NOKIA BELL XG-040G-MD
 
 Image 基于 OpenWrt main (snapshot) 分支构建，包含 luci，不包含中文语言包及其他不必要的包，与其他常见的官方 image 类似，尽可能保持小体积。
 
+尝试支持了FM25G02B
 **目前没有经过刷机测试，请勿直接使用**。
