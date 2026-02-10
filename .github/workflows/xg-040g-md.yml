@@ -15,8 +15,7 @@ on:
 
 env:
   CONFIG_FILE: "config/xg-040g-md.config"
-  # 既然你确定 25.12 能用，我保留你的设置。
-  # 如果这里再报错 Clone 失败，请务必改回 master
+  # 保留你验证过的 25.12 分支
   REPO_URL: https://github.com/openwrt/openwrt.git
   REPO_BRANCH: openwrt-25.12
   FEEDS_CONF: feeds.conf.default-25.12
@@ -38,7 +37,7 @@ jobs:
           TZ: ${{ env.TZ }}
         run: |
           sudo apt update
-          # 移除不兼容包
+          # 移除不兼容包 (修复 install dependencies 报错)
           sudo apt purge -y python3-distutils || true
           sudo apt autoremove -y
           # 安装核心依赖
@@ -69,7 +68,7 @@ jobs:
         run: |
           git clone --depth 1 --branch "$REPO_BRANCH" "$REPO_URL" openwrt
           
-          # --- 1. 应用基础补丁 (保留这些安全的) ---
+          # --- 1. 应用基础补丁 ---
           [ -e patch/02_network ] && cp -f patch/02_network openwrt/target/linux/airoha/an7581/base-files/etc/board.d/02_network
           [ -e patch/an7581.mk ] && cp -f patch/an7581.mk openwrt/target/linux/airoha/image/an7581.mk
           [ -e patch/an7581-bell_xg-040g-md.dts ] && cp -f patch/an7581-bell_xg-040g-md.dts openwrt/target/linux/airoha/dts/an7581-bell_xg-040g-md.dts
@@ -77,9 +76,16 @@ jobs:
           [ -e patch/config-6.12 ] && cp -f patch/config-6.12 openwrt/target/linux/airoha/an7581/config-6.12
           [ -e patch/netdevices.mk ] && cp -f patch/netdevices.mk openwrt/package/kernel/linux/modules/netdevices.mk
           
-          # --- 2. 移除导致报错的 FMSH 闪存补丁 ---
-          # 这里的两行代码已被删除，因为它们破坏了内核头文件编译。
-          echo "⚠️ 已跳过 FMSH 闪存补丁以修复编译错误。"
+          # --- 2. 应用 FM25G02B 完美版补丁 ---
+          # 自动创建目录以防万一
+          mkdir -p openwrt/target/linux/generic/hack-6.12/
+          # 复制新补丁
+          if [ -e patch/999-fm25g02b-perfect.patch ]; then
+            cp -f patch/999-fm25g02b-perfect.patch openwrt/target/linux/generic/hack-6.12/999-fm25g02b-perfect.patch
+            echo "✅ 已应用 FM25G02B 芯片支持补丁"
+          else
+            echo "⚠️ 未找到 patch/999-fm25g02b-perfect.patch，请检查文件上传！"
+          fi
 
           # --- 3. 下载 EQoS Plus ---
           git clone https://github.com/sirpdboy/luci-app-eqosplus openwrt/package/luci-app-eqosplus
@@ -156,7 +162,7 @@ jobs:
           🚀 OpenWrt firmware for XG-040G-MD
           ----------------------
           构建时间: $(date +"%Y-%m-%d %H:%M")
-          说明: 已移除导致内核错误的实验性补丁
+          说明: 已添加 FM25G02B 芯片原生支持
           EOF
 
       - name: Publish GitHub Release
