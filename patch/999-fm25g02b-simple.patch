@@ -4,15 +4,16 @@
  		return -EBADMSG;
  }
  
-+/* --- FM25G02B 专属 OOB 定义 (适配 I3 版本) --- */
++/* --- FM25G02B 修正版 OOB 定义 (兼容模式) --- */
 +static int fm25g02b_ooblayout_ecc(struct mtd_info *mtd, int section,
 +				  struct mtd_oob_region *region)
 +{
-+	if (section >= 8)
++	/* 调整为更通用的布局：每扇区 16 字节 ECC */
++	if (section >= 4)
 +		return -ERANGE;
 +
-+	region->offset = 64 + section * 8;
-+	region->length = 8;
++	region->offset = 64 + section * 16;
++	region->length = 16;
 +
 +	return 0;
 +}
@@ -23,6 +24,7 @@
 +	if (section)
 +		return -ERANGE;
 +
++	/* 保留前 2 字节做坏块标记，剩下 62 字节空闲 */
 +	region->offset = 2;
 +	region->length = 62;
 +
@@ -45,7 +47,7 @@
 +	SPINAND_INFO("FM25G02B",
 +		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0xD2),
 +		     NAND_MEMORG(1, 2048, 128, 64, 2048, 40, 1, 1, 1),
-+		     NAND_ECCREQ(8, 528),
++		     NAND_ECCREQ(8, 512),
 +		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
 +					      &write_cache_variants,
 +					      &update_cache_variants),
