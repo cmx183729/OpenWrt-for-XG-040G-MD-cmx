@@ -8,16 +8,16 @@ on:
   workflow_dispatch:
     inputs:
       log_switch:
-        description: "Build logs"
+        description: "开启详细日志"
         required: false
         default: false
         type: boolean
 
 env:
   CONFIG_FILE: "config/xg-040g-md.config"
-  # 按你要求：保留 OpenWrt 官方仓库
+  # 既然你确定 25.12 能用，我保留你的设置。
+  # 如果这里再报错 Clone 失败，请务必改回 master
   REPO_URL: https://github.com/openwrt/openwrt.git
-  # 按你要求：保留 25.12 分支
   REPO_BRANCH: openwrt-25.12
   FEEDS_CONF: feeds.conf.default-25.12
   UPLOAD_FIRMWARE: true
@@ -30,7 +30,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup environment dependencies
         env:
@@ -38,9 +38,10 @@ jobs:
           TZ: ${{ env.TZ }}
         run: |
           sudo apt update
+          # 移除不兼容包
           sudo apt purge -y python3-distutils || true
           sudo apt autoremove -y
-          # ⚠️ 修复点：删除了 python3-distutils，防止报错
+          # 安装核心依赖
           sudo apt install -y \
             build-essential clang flex bison g++ gawk \
             gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev \
@@ -64,11 +65,11 @@ jobs:
           python3 -m pip install --upgrade pip setuptools wheel
           python3 -m pip install Unidecode
 
-      - name: Clone OpenWrt source code and apply XG-040G-MD patch files
+      - name: Clone OpenWrt source code
         run: |
           git clone --depth 1 --branch "$REPO_BRANCH" "$REPO_URL" openwrt
           
-          # 应用基础补丁
+          # --- 1. 应用基础补丁 (保留这些安全的) ---
           [ -e patch/02_network ] && cp -f patch/02_network openwrt/target/linux/airoha/an7581/base-files/etc/board.d/02_network
           [ -e patch/an7581.mk ] && cp -f patch/an7581.mk openwrt/target/linux/airoha/image/an7581.mk
           [ -e patch/an7581-bell_xg-040g-md.dts ] && cp -f patch/an7581-bell_xg-040g-md.dts openwrt/target/linux/airoha/dts/an7581-bell_xg-040g-md.dts
@@ -76,11 +77,11 @@ jobs:
           [ -e patch/config-6.12 ] && cp -f patch/config-6.12 openwrt/target/linux/airoha/an7581/config-6.12
           [ -e patch/netdevices.mk ] && cp -f patch/netdevices.mk openwrt/package/kernel/linux/modules/netdevices.mk
           
-          # ⚠️ 修复点：修正之前的复制粘贴错误，确保复制的是 patch 文件
-          [ -e patch/400-mtd-spinand-Support-fmsh.patch ] && cp -f patch/400-mtd-spinand-Support-fmsh.patch openwrt/target/linux/generic/hack-6.12/400-mtd-spinand-Support-fmsh.patch
-          [ -e patch/342-mtd-spinand-Support-fmsh.patch ] && cp -f patch/342-mtd-spinand-Support-fmsh.patch openwrt/package/boot/uboot-mediatek/patches/342-mtd-spinand-Support-fmsh.patch
+          # --- 2. 移除导致报错的 FMSH 闪存补丁 ---
+          # 这里的两行代码已被删除，因为它们破坏了内核头文件编译。
+          echo "⚠️ 已跳过 FMSH 闪存补丁以修复编译错误。"
 
-          # ⚠️ 新增：下载 eqosplus 插件源码
+          # --- 3. 下载 EQoS Plus ---
           git clone https://github.com/sirpdboy/luci-app-eqosplus openwrt/package/luci-app-eqosplus
 
       - name: Update & Install feeds
@@ -99,7 +100,7 @@ jobs:
           [ -e .config ] && cp .config defconfig-final.config
 
       - name: Upload build config files
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: build-config
           path: |
@@ -117,11 +118,13 @@ jobs:
         id: compile
         run: |
           cd openwrt
+          echo "Starting Compile..."
           if [[ "${{ inputs.log_switch }}" == "true" ]]; then
             make -j1 V=s
           else
             make -j$(nproc)
           fi
+          
           DEVICE_NAME=$(grep -o 'CONFIG_TARGET.*DEVICE_[^=]*=y' .config | head -1 | sed 's/.*DEVICE_\(.*\)=y/\1/')
           if [[ -n "$DEVICE_NAME" ]]; then
             echo "DEVICE_NAME=_${DEVICE_NAME}" >> $GITHUB_ENV
@@ -138,7 +141,7 @@ jobs:
           echo "FIRMWARE=$PWD" >> $GITHUB_ENV
 
       - name: Upload firmware artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         if: env.UPLOAD_FIRMWARE == 'true'
         with:
           name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
@@ -152,11 +155,8 @@ jobs:
           cat <<EOF > release.txt
           🚀 OpenWrt firmware for XG-040G-MD
           ----------------------
-          设备型号: XG-040G-MD
           构建时间: $(date +"%Y-%m-%d %H:%M")
-          内核版本: 6.12.X
-          源码仓库: $REPO_URL
-          分支: $REPO_BRANCH
+          说明: 已移除导致内核错误的实验性补丁
           EOF
 
       - name: Publish GitHub Release
