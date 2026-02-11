@@ -80,7 +80,7 @@ jobs:
           # 自动创建目录以防万一
           mkdir -p openwrt/target/linux/generic/hack-6.12/
           # 复制新补丁
-          if [ -e patch/999-fm25g02b-perfect.patch ]; then
+          if [ -e patch/999-fm25g02b-simple.patch ]; then
             cp -f patch/999-fm25g02b-simple.patch openwrt/target/linux/generic/hack-6.12/999-fm25g02b-simple.patch
             echo "✅ 已应用 FM25G02B 芯片支持补丁"
           else
