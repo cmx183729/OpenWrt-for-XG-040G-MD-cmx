@@ -10,8 +10,8 @@ on:
       log_switch:
         description: "开启详细日志"
         required: false
-        default: false
-        type: boolean
+        默认: false
+        输入: boolean
 
 env:
   CONFIG_FILE: "config/xg-040g-md.config"
@@ -81,10 +81,10 @@ jobs:
           mkdir -p openwrt/target/linux/generic/hack-6.12/
           # 复制新补丁
           if [ -e patch/999-fm25g02b-perfect.patch ]; then
-            cp -f patch/999-fm25g02b-perfect.patch openwrt/target/linux/generic/hack-6.12/999-fm25g02b-perfect.patch
+            cp -f patch/999-fm25g02b-simple.patch openwrt/target/linux/generic/hack-6.12/999-fm25g02b-simple.patch
             echo "✅ 已应用 FM25G02B 芯片支持补丁"
           else
-            echo "⚠️ 未找到 patch/999-fm25g02b-perfect.patch，请检查文件上传！"
+            echo "⚠️ 未找到 patch/999-fm25g02b-simple.patch，请检查文件上传！"
           fi
 
           # --- 3. 下载 EQoS Plus ---
