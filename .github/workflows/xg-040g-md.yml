@@ -10,8 +10,8 @@ on:
       log_switch:
         description: "开启详细日志"
         required: false
-        默认: false
-        输入: boolean
+        default: false
+        type: boolean
 
 env:
   CONFIG_FILE: "config/xg-040g-md.config"
