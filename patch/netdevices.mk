@@ -238,7 +238,7 @@ $(eval $(call KernelPackage,mdio-gpio))
 define KernelPackage/et131x
   SUBMENU:=$(NETWORK_DEVICES_MENU)
   TITLE:=Agere ET131x Gigabit Ethernet driver
-  URL:=https://sourceforge.net/projects/et131x
+  URL:=http://sourceforge.net/projects/et131x
   FILES:= \
 	$(LINUX_DIR)/drivers/net/ethernet/agere/et131x.ko
   KCONFIG:= \
@@ -604,41 +604,6 @@ define KernelPackage/phy-airoha-en8811h/description
 endef
 
 $(eval $(call KernelPackage,phy-airoha-en8811h))
-
-
-define KernelPackage/airoha-npu
-  SUBMENU:=$(NETWORK_DEVICES_MENU)
-  TITLE:=Airoha EN7581 NPU support
-  DEPENDS:=@TARGET_airoha_an7581
-  KCONFIG:=CONFIG_NET_AIROHA_NPU
-  FILES:=$(LINUX_DIR)/drivers/net/ethernet/airoha/airoha_npu.ko
-  AUTOLOAD:=$(call AutoLoad,18,airoha_npu,1)
-endef
-
-define KernelPackage/airoha-npu/description
-  Kernel module support for the Airoha EN7581 Network Processor Unit (NPU)
-endef
-
-$(eval $(call KernelPackage,airoha-npu))
-
-
-define KernelPackage/airoha-eth
-  SUBMENU:=$(NETWORK_DEVICES_MENU)
-  TITLE:=Airoha SoC Ethernet support
-  DEPENDS:=@TARGET_airoha_an7581 +kmod-airoha-npu
-  KCONFIG:= \
-	CONFIG_NET_VENDOR_AIROHA \
-	CONFIG_NET_AIROHA \
-	CONFIG_NET_AIROHA_FLOW_STATS
-  FILES:=$(LINUX_DIR)/drivers/net/ethernet/airoha/airoha-eth.ko
-  AUTOLOAD:=$(call AutoLoad,19,airoha-eth,1)
-endef
-
-define KernelPackage/airoha-eth/description
-  Kernel module support for the Airoha SoC Ethernet controller
-endef
-
-$(eval $(call KernelPackage,airoha-eth))
 
 
 define KernelPackage/phy-aquantia
@@ -1436,7 +1401,7 @@ define KernelPackage/ice
   DEPENDS:=@PCI_SUPPORT +kmod-ptp +kmod-hwmon-core +kmod-libie
   KCONFIG:=CONFIG_ICE \
     CONFIG_ICE_HWMON=y \
-    CONFIG_ICE_HWTS=n \
+    CONFIG_ICE_HWTS=y \
     CONFIG_ICE_SWITCHDEV=y
   FILES:=$(LINUX_DIR)/drivers/net/ethernet/intel/ice/ice.ko
   AUTOLOAD:=$(call AutoProbe,ice)
@@ -1830,11 +1795,11 @@ define KernelPackage/bnxt-en
   DEPENDS:=@PCI_SUPPORT +kmod-hwmon-core +kmod-lib-crc32c +kmod-mdio +kmod-ptp
   FILES:=$(LINUX_DIR)/drivers/net/ethernet/broadcom/bnxt/bnxt_en.ko
   KCONFIG:= \
-	  CONFIG_BNXT \
-	  CONFIG_BNXT_SRIOV=y \
-	  CONFIG_BNXT_FLOWER_OFFLOAD=y \
-	  CONFIG_BNXT_DCB=y \
-	  CONFIG_BNXT_HWMON=y
+	CONFIG_BNXT \
+	CONFIG_BNXT_SRIOV=y \
+	CONFIG_BNXT_FLOWER_OFFLOAD=y \
+	CONFIG_BNXT_DCB=y \
+	CONFIG_BNXT_HWMON=y
   AUTOLOAD:=$(call AutoProbe,bnxt_en)
 endef
 
@@ -1901,12 +1866,14 @@ define KernelPackage/mlx5-core
 	CONFIG_MLX5_EN_IPSEC=n \
 	CONFIG_MLX5_EN_RXNFC=y \
 	CONFIG_MLX5_EN_TLS=n \
-	CONFIG_MLX5_ESWITCH=n \
+	CONFIG_MLX5_ESWITCH=y \
 	CONFIG_MLX5_FPGA=n \
 	CONFIG_MLX5_FPGA_IPSEC=n \
 	CONFIG_MLX5_FPGA_TLS=n \
 	CONFIG_MLX5_MPFS=y \
 	CONFIG_MLX5_SW_STEERING=n \
+	CONFIG_MLX5_HW_STEERING=n \
+	CONFIG_MLX5_CLS_ACT=n \
 	CONFIG_MLX5_TC_CT=n \
 	CONFIG_MLX5_TLS=n \
 	CONFIG_MLX5_VFIO_PCI=n
@@ -2082,6 +2049,30 @@ define KernelPackage/qlcnic/description
 endef
 
 $(eval $(call KernelPackage,qlcnic))
+
+
+define KernelPackage/qede
+  SUBMENU:=$(NETWORK_DEVICES_MENU)
+  DEPENDS:=@PCI_SUPPORT +kmod-ptp +kmod-lib-crc8 +kmod-lib-zlib-inflate
+  TITLE:=QLogic FastLinQ 10/25/40/100Gb Ethernet NIC device support
+  KCONFIG:= \
+	CONFIG_QED \
+	CONFIG_QED_SRIOV=y \
+	CONFIG_QEDE \
+	CONFIG_QEDF=n \
+	CONFIG_QEDI=n
+  FILES:= \
+	$(LINUX_DIR)/drivers/net/ethernet/qlogic/qed/qed.ko \
+	$(LINUX_DIR)/drivers/net/ethernet/qlogic/qede/qede.ko
+  AUTOLOAD:=$(call AutoProbe,qed qede)
+endef
+
+define KernelPackage/qede/description
+  This driver supports QLogic FastLinQ 25/40/100Gb Ethernet NIC
+  devices.
+endef
+
+$(eval $(call KernelPackage,qede))
 
 
 define KernelPackage/sfp
@@ -2300,7 +2291,6 @@ endef
 
 $(eval $(call KernelPackage,mhi-wwan-mbim))
 
-
 define KernelPackage/mtk-t7xx
   SUBMENU:=$(NETWORK_DEVICES_MENU)
   TITLE:=MediaTek T7xx 5G modem
@@ -2311,11 +2301,13 @@ define KernelPackage/mtk-t7xx
 endef
 
 define KernelPackage/mtk-t7xx/description
- Driver for MediaTek PCIe 5G WWAN modem T7xx device
+  Enables MediaTek PCIe based 5G WWAN modem (T7xx series) device.
+  Adapts WWAN framework and provides network interface like wwan0
+  and tty interfaces like wwan0at0 (AT protocol), wwan0mbim0
+  (MBIM protocol), etc.
 endef
 
 $(eval $(call KernelPackage,mtk-t7xx))
-
 
 define KernelPackage/atlantic
   SUBMENU:=$(NETWORK_DEVICES_MENU)
@@ -2379,21 +2371,3 @@ define KernelPackage/enc28j60/description
 endef
 
 $(eval $(call KernelPackage,enc28j60))
-
-define KernelPackage/sparx5-switch
-  SUBMENU:=$(NETWORK_DEVICES_MENU)
-  TITLE:=Sparx5 switch driver
-  DEPENDS:=@TARGET_microchipsw +kmod-phylink +kmod-ptp
-  KCONFIG:= \
-  CONFIG_SPARX5_SWITCH \
-  CONFIG_LAN969X_SWITCH=y \
-  CONFIG_SPARX5_DCB=y
-  FILES:=$(LINUX_DIR)/drivers/net/ethernet/microchip/sparx5/sparx5-switch.ko
-  AUTOLOAD:=$(call AutoProbe,sparx5-switch,1)
-endef
-
-define KernelPackage/sparx5-switch/description
-  This driver supports the Sparx5 network switch device.
-endef
-
-$(eval $(call KernelPackage,sparx5-switch))
